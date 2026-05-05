@@ -4,7 +4,7 @@ Welcome, and thank you for your interest in contributing!
 
 This document covers:
 
-- [Contributing to BonfiSoft Development Tracker](#contributing-to-vetspresso-issues-tracker)
+- [Contributing to BonfiSoft Development Tracker](#contributing-to-bonfisoft-development-tracker)
   - [Project Architecture](#project-architecture)
     - [Key Design Principles](#key-design-principles)
   - [Development Setup](#development-setup)
@@ -32,7 +32,7 @@ This document covers:
 ## Project Architecture
 
 ```text
-vetspresso-issues/
+bonfisoft-issues/
 ├── src/
 │   ├── constants.ts              ← All command IDs, config keys, view IDs
 │   ├── extension.ts              ← activate() / deactivate() entry point
@@ -141,8 +141,8 @@ vetspresso-issues/
 
 ```sh
 # Clone the repo
-git clone https://github.com/vetspresso/vetspresso-issues.git
-cd vetspresso-issues
+git clone https://github.com/bonfisoft/bonfisoft-issues.git
+cd bonfisoft-issues
 
 # Install dev dependencies
 npm install
@@ -173,9 +173,9 @@ In the Extension Development Host window, press `Ctrl+Shift+P` → **Developer: 
 
 ### Logging
 
-The extension writes to the **Vetspresso Issues** output channel. Open it via `View → Output` and select the channel.
+The extension writes to the **BonfiSoft Issues** output channel. Open it via `View → Output` and select the channel.
 
-Log levels: `DEBUG`, `INFO`, `WARN`, `ERROR`. Set `vetspresso-issues.logLevel` in settings (not shipped in production builds) to change verbosity.
+Log levels: `DEBUG`, `INFO`, `WARN`, `ERROR`. Set `bonfisoft-issues.logLevel` in settings (not shipped in production builds) to change verbosity.
 
 ---
 

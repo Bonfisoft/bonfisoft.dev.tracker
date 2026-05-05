@@ -1,0 +1,68 @@
+{
+  "name": "bonfisoft-development-tracker",
+  "displayName": "BonfiSoft Development Tracker",
+  "description": "Project-local issue tracking with git integration",
+  "version": "0.1.0",
+  "publisher": "bonfisoft",
+  "license": "AGPL-3.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "issues",
+    "tracking",
+    "project management",
+    "tasks",
+    "bugs"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [],
+    "configuration": {
+      "title": "BonfiSoft Development Tracker",
+      "properties": {
+        "bonfisoft-issues.storageLocation": {
+          "type": "string",
+          "default": "workspace",
+          "enum": ["workspace", "global"],
+          "description": "Where to store issues: workspace (.vscode/issues/) or global (VS Code global storage)"
+        },
+        "bonfisoft-issues.author": {
+          "type": "string",
+          "default": "",
+          "description": "Your name or username - used as the reporter on new issues"
+        },
+        "bonfisoft-issues.defaultIssueType": {
+          "type": "string",
+          "default": "bug",
+          "enum": ["bug", "feature", "task", "enhancement", "question", "documentation", "other"],
+          "description": "Default issue type pre-selected when creating a new issue"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.1.0",
+    "@vitest/coverage-v8": "^1.1.0"
+  }
+}

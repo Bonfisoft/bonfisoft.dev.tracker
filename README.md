@@ -4,8 +4,8 @@
 
 [![VS Code Marketplace](https://img.shields.io/badge/VS%20Code-Marketplace-blue?logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=bonfisoft.development.tracker)
 [![Version](https://img.shields.io/visual-studio-marketplace/v/bonfisoft.development.tracker?label=version)](https://marketplace.visualstudio.com/items?itemName=bonfisoft.development.tracker)
-[![CI](https://github.com/vetspresso/vetspresso-issues/actions/workflows/ci.yml/badge.svg)](https://github.com/vetspresso/vetspresso-issues/actions/workflows/ci.yml)
-[![Coverage](https://codecov.io/gh/vetspresso/vetspresso-issues/branch/main/graph/badge.svg)](https://codecov.io/gh/vetspresso/vetspresso-issues)
+[![CI](https://github.com/bonfisoft/bonfisoft-issues/actions/workflows/ci.yml/badge.svg)](https://github.com/bonfisoft/bonfisoft-issues/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/bonfisoft/bonfisoft-issues/branch/main/graph/badge.svg)](https://codecov.io/gh/bonfisoft/bonfisoft-issues)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 BonfiSoft Development Tracker is a fully self-contained, project-local issue tracker for VS Code. No external services, no accounts, no cloud dependency — your data lives where your code lives.
@@ -76,7 +76,7 @@ code --install-extension bonfisoft.development.tracker
 
 ## Configuration
 
-All settings are under `vetspresso-issues.*`:
+All settings are under `bonfisoft-issues.*`:
 
 | Setting | Default | Description |
 | --- | --- | --- |
@@ -279,7 +279,7 @@ Screenshots coming soon
 
 ## Multi-root Workspace Support
 
-For workspaces with multiple folders, set `vetspresso-issues.multiRootStorage`:
+For workspaces with multiple folders, set `bonfisoft-issues.multiRootStorage`:
 
 - `shared` — All folders use a single issue store (the store root is the first workspace folder)
 - `perFolder` — Each folder has its own independent issue store
@@ -302,6 +302,6 @@ See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for architecture overview, deve
 
 ## Author
 
-**Alberto L. Bonfiglio** — [vetspresso](https://github.com/vetspresso)
+**Alberto L. Bonfiglio** — [bonfisoft](https://github.com/bonfisoft)
 
-Issues and pull requests welcome on [GitHub](https://github.com/vetspresso/vetspresso-issues).
+Issues and pull requests welcome on [GitHub](https://github.com/bonfisoft/bonfisoft-issues).
