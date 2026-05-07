@@ -9,7 +9,7 @@
         "--extensionDevelopmentPath=${workspaceFolder}"
       ],
       "outFiles": [
-        "${workspaceFolder}/dist/**/*.js" // Changed from /out/ to /dist/
+        "${workspaceFolder}/out/**/*.js" // Changed from /out/ to /dist/
       ],
       "preLaunchTask": "npm: esbuild-watch"
     }

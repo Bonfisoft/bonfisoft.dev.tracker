@@ -37,7 +37,8 @@
         {
           "id": "bonfisoftIssues",
           "name": "Issues",
-          "contextualTitle": "BonfiSoft Issues"
+          "contextualTitle": "BonfiSoft Issues",
+          "icon": "resources/issues.svg"
         }
       ]
     },

@@ -31,6 +31,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri;
   if (!workspaceFolder) {
     logger.warn('no workspace folder found - extension limited to single-folder workspaces');
+    // Register empty tree view to avoid "no data provider" error
+    context.subscriptions.push(
+      vscode.window.registerTreeDataProvider(VIEWS.ISSUES_TREE, {
+        getTreeItem: () => ({ id: 'empty', label: 'Open a folder to use Issues' }),
+        getChildren: () => []
+      })
+    );
+    vscode.window.showWarningMessage('BonfiSoft Issues: Open a folder/workspace to track issues');
     return;
   }
 
