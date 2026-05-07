@@ -117,8 +117,73 @@ export function resetWorkspace(): void {
   workspace.fs.clear();
 }
 
+// Mock TreeItemCollapsibleState enum
+export enum TreeItemCollapsibleState {
+  None = 0,
+  Collapsed = 1,
+  Expanded = 2
+}
+
+// Mock TreeItem
+export class TreeItem {
+  label?: string;
+  id?: string;
+  contextValue?: string;
+  tooltip?: unknown;
+  description?: string;
+  iconPath?: unknown;
+  command?: unknown;
+  collapsibleState: TreeItemCollapsibleState;
+
+  constructor(label: string, collapsibleState: TreeItemCollapsibleState = TreeItemCollapsibleState.None) {
+    this.label = label;
+    this.collapsibleState = collapsibleState;
+  }
+}
+
+// Mock ThemeIcon
+export class ThemeIcon {
+  id: string;
+  constructor(id: string) {
+    this.id = id;
+  }
+}
+
+// Mock MarkdownString
+export class MarkdownString {
+  value: string;
+  constructor(value: string = '') {
+    this.value = value;
+  }
+}
+
+// Mock EventEmitter (VS Code style)
+export class EventEmitter<T = void> {
+  private listeners: Array<(e: T) => unknown> = [];
+
+  get event(): (listener: (e: T) => unknown) => { dispose: () => void } {
+    return (listener: (e: T) => unknown) => {
+      this.listeners.push(listener);
+      return { dispose: () => { this.listeners = this.listeners.filter(l => l !== listener); } };
+    };
+  }
+
+  fire(data?: T): void {
+    this.listeners.forEach(l => l(data as T));
+  }
+
+  dispose(): void {
+    this.listeners = [];
+  }
+}
+
 // Export everything as the vscode module
 export default {
   Uri,
-  workspace
+  workspace,
+  TreeItem,
+  TreeItemCollapsibleState,
+  ThemeIcon,
+  MarkdownString,
+  EventEmitter
 };

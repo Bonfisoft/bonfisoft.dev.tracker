@@ -217,11 +217,13 @@ npx tsc --noEmit           # No type errors
 
 **Goal**: User interface for create, view, **edit**, delete
 
-### 3.1 IssueTreeProvider (Day 17-19)
+### 3.1 IssueTreeProvider (Day 17-19) ✅ COMPLETE
 
-**Files to Create:**
+**Files Created:**
 
-- `src/providers/IssueTreeProvider.ts`
+- `src/providers/IssueTreeProvider.ts` ✅
+- `src/constants.ts` (COMMANDS, VIEWS, VIEW_CONTAINERS) ✅
+- `resources/issues.svg` (activity bar icon) ✅
 
 **Requirements:**
 
@@ -230,23 +232,36 @@ npx tsc --noEmit           # No type errors
 
 **Acceptance Criteria:**
 
-- [ ] Tree view registered as `bonfisoftIssues`
-- [ ] Group by status (default)
-- [ ] Click opens detail panel
-- [ ] Context menu on right-click
-- [ ] Toolbar buttons (+, filter, refresh)
-- [ ] Auto-refresh on database events
+- [x] Tree view registered as `bonfisoftIssues`
+- [x] Group by status (default)
+- [x] Click triggers VIEW_ISSUE command (opens detail panel - Phase 3.3)
+- [x] Context menu on right-click (view, edit, delete)
+- [x] Toolbar buttons (+ create, refresh)
+- [x] Auto-refresh on database events
+
+**Also completed:**
+
+- `package.json` contributions: `viewsContainers`, `views`, `commands`, `menus`, `keybindings`
+- `IssuesDatabase.onDidChangeIssues()` event system added
+- `extension.ts` wired up: storage → database → tree provider + 6 commands
+- `test/mocks/vscode.ts` extended: `TreeItem`, `TreeItemCollapsibleState`, `ThemeIcon`, `MarkdownString`, `EventEmitter`
+- `test/suite/issueTreeProvider.test.ts` - 30 tests, all passing
+
+**Keybindings registered:**
+
+- `Ctrl+Alt+I` — Create Issue
+- `Ctrl+Alt+Shift+F` — Search Issues
 
 **Template:** `docs/ai-agent-templates/provider-template.md`
 
 ---
 
-### 3.2 Issue Commands (Day 20-23)
+### 3.2 Issue Commands (Day 20-23) ✅ COMPLETE
 
-**Files to Create:**
+**Files Created:**
 
-- `src/commands/issueCommands.ts`
-- `src/constants.ts` (command IDs)
+- `src/commands/issueCommands.ts` ✅
+- ~~`src/constants.ts` (command IDs)~~ — already created in 3.1
 
 **Requirements:**
 
@@ -255,16 +270,23 @@ npx tsc --noEmit           # No type errors
 
 **Acceptance Criteria:**
 
-- [ ] Create Issue wizard (Ctrl+Alt+I)
-- [ ] View Issue command
-- [ ] Edit Issue command
-- [ ] Close/Resolve/Reopen commands
-- [ ] Delete Issue with confirmation
-- [ ] Search Issues (Ctrl+Alt+Shift+F)
-- [ ] Filter Issues command
-- [ ] Link Code to Issue (Ctrl+Alt+L)
-- [ ] All commands in package.json
-- [ ] Keybindings registered
+- [x] Create Issue wizard (Ctrl+Alt+I) — type → title → severity → urgency
+- [x] View Issue command — stub, will open IssueDetailPanel in 3.3
+- [x] Edit Issue command — field picker → per-field input/QuickPick
+- [x] Close/Resolve/Reopen commands — single-step status transition
+- [x] Delete Issue with confirmation modal
+- [x] Search Issues (Ctrl+Alt+Shift+F) — live-filter `createQuickPick` backed by `SearchService`
+- [x] Filter Issues command — status/severity presets via `IssueService.filterIssues`
+- [ ] Link Code to Issue (Ctrl+Alt+L) — Phase 4
+- [x] All commands in package.json
+- [x] Keybindings registered
+
+**Also completed:**
+
+- `extension.ts` updated: `IssueService` + `SearchService` wired; `registerIssueCommands` replaces all stubs
+- `package.json`: close, resolve, reopen, filterIssues commands + menus added
+- `test/suite/issueCommands.test.ts` — 30 tests, all passing
+- `test/mocks/vscode.ts`: `vi.mock`-compatible (inline factory pattern)
 
 **Template:** `docs/ai-agent-templates/command-template.md`
 
@@ -308,10 +330,12 @@ npx tsc --noEmit           # No type errors
 
 ### Phase 3 Verification
 
-- Create issue end-to-end
-- Edit issue all fields
-- Verify changes persist after reload
-- All keyboard shortcuts work
+- [ ] Create issue end-to-end
+- [ ] Edit issue all fields
+- [ ] Verify changes persist after reload
+- [x] All keyboard shortcuts registered (Ctrl+Alt+I, Ctrl+Alt+Shift+F)
+- [x] Sidebar icon visible in activity bar
+- [x] Tree view shows issues grouped by status
 
 ---
 
@@ -537,7 +561,7 @@ grep -r "any" src/          # No forbidden types
 |------|----------|-------------|
 | Phase Gate 1 | All storage tests pass, atomic writes verified | Before Phase 2 |
 | Phase Gate 2 | IssueService 90% coverage, all CRUD tested | Before Phase 3 |
-| Phase Gate 3 | **Edit issue E2E passes** | Before Phase 4 |
+| Phase Gate 3 | **Edit issue E2E passes** | Before Phase 4 | _(3.1 done, 3.2 and 3.3 pending)_ |
 | Phase Gate 4 | Code linking E2E passes | MVP Complete |
 | Final Gate | 80% total coverage, all E2E pass | Release |
 

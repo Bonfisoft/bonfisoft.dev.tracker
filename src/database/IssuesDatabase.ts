@@ -4,6 +4,7 @@
  * @module database/IssuesDatabase
  */
 
+import { EventEmitter } from 'events';
 import type { IStorageProvider } from '../storage/IStorageProvider.ts';
 import type { IIdGenerator } from '../utils/idGenerator.ts';
 import {
@@ -40,6 +41,21 @@ export interface IssueSearchFilters {
 export class IssuesDatabase {
   private data: IssuesDatabaseType | null = null;
   private loaded = false;
+  private readonly _emitter = new EventEmitter();
+
+  /**
+   * Subscribe to any issue data change (create, update, delete)
+   * @param callback - Called whenever issues change
+   * @returns Disposable to remove the listener
+   */
+  onDidChangeIssues(callback: () => void): { dispose: () => void } {
+    this._emitter.on('change', callback);
+    return { dispose: () => this._emitter.off('change', callback) };
+  }
+
+  private notifyChange(): void {
+    this._emitter.emit('change');
+  }
 
   /**
    * @param storage - Storage provider for persistence
@@ -161,6 +177,7 @@ export class IssuesDatabase {
     this.data!.metadata.issueCounter++;
 
     await this.persist();
+    this.notifyChange();
     logger.debug(`created issue ${issue.id}: ${issue.title}`);
 
     return this.clone(issue);
@@ -214,6 +231,7 @@ export class IssuesDatabase {
 
     this.data!.issues[index] = updated;
     await this.persist();
+    this.notifyChange();
 
     logger.debug(`updated issue ${id}`);
     return this.clone(updated);
@@ -234,6 +252,7 @@ export class IssuesDatabase {
 
     this.data!.issues.splice(index, 1);
     await this.persist();
+    this.notifyChange();
 
     logger.debug(`deleted issue ${id}`);
   }

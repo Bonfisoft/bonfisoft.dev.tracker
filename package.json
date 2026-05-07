@@ -23,7 +23,142 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": [],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "bonfisoftIssuesSidebar",
+          "title": "Issues",
+          "icon": "resources/issues.svg"
+        }
+      ]
+    },
+    "views": {
+      "bonfisoftIssuesSidebar": [
+        {
+          "id": "bonfisoftIssues",
+          "name": "Issues",
+          "contextualTitle": "BonfiSoft Issues"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "bonfisoft-issues.refreshIssues",
+        "title": "Refresh Issues",
+        "icon": "$(refresh)",
+        "category": "BonfiSoft Issues"
+      },
+      {
+        "command": "bonfisoft-issues.createIssue",
+        "title": "Create Issue",
+        "icon": "$(add)",
+        "category": "BonfiSoft Issues"
+      },
+      {
+        "command": "bonfisoft-issues.viewIssue",
+        "title": "View Issue",
+        "category": "BonfiSoft Issues"
+      },
+      {
+        "command": "bonfisoft-issues.editIssue",
+        "title": "Edit Issue",
+        "category": "BonfiSoft Issues"
+      },
+      {
+        "command": "bonfisoft-issues.deleteIssue",
+        "title": "Delete Issue",
+        "category": "BonfiSoft Issues"
+      },
+      {
+        "command": "bonfisoft-issues.searchIssues",
+        "title": "Search Issues",
+        "category": "BonfiSoft Issues"
+      },
+      {
+        "command": "bonfisoft-issues.closeIssue",
+        "title": "Close Issue",
+        "category": "BonfiSoft Issues"
+      },
+      {
+        "command": "bonfisoft-issues.resolveIssue",
+        "title": "Resolve Issue",
+        "category": "BonfiSoft Issues"
+      },
+      {
+        "command": "bonfisoft-issues.reopenIssue",
+        "title": "Reopen Issue",
+        "category": "BonfiSoft Issues"
+      },
+      {
+        "command": "bonfisoft-issues.filterIssues",
+        "title": "Filter Issues",
+        "icon": "$(filter)",
+        "category": "BonfiSoft Issues"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "bonfisoft-issues.createIssue",
+          "when": "view == bonfisoftIssues",
+          "group": "navigation"
+        },
+        {
+          "command": "bonfisoft-issues.filterIssues",
+          "when": "view == bonfisoftIssues",
+          "group": "navigation"
+        },
+        {
+          "command": "bonfisoft-issues.refreshIssues",
+          "when": "view == bonfisoftIssues",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "bonfisoft-issues.viewIssue",
+          "when": "view == bonfisoftIssues && viewItem == issue",
+          "group": "inline"
+        },
+        {
+          "command": "bonfisoft-issues.editIssue",
+          "when": "view == bonfisoftIssues && viewItem == issue",
+          "group": "issue@1"
+        },
+        {
+          "command": "bonfisoft-issues.closeIssue",
+          "when": "view == bonfisoftIssues && viewItem == issue",
+          "group": "issue@2"
+        },
+        {
+          "command": "bonfisoft-issues.resolveIssue",
+          "when": "view == bonfisoftIssues && viewItem == issue",
+          "group": "issue@3"
+        },
+        {
+          "command": "bonfisoft-issues.reopenIssue",
+          "when": "view == bonfisoftIssues && viewItem == issue",
+          "group": "issue@4"
+        },
+        {
+          "command": "bonfisoft-issues.deleteIssue",
+          "when": "view == bonfisoftIssues && viewItem == issue",
+          "group": "issue@9"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "bonfisoft-issues.createIssue",
+        "key": "ctrl+alt+i",
+        "mac": "cmd+alt+i"
+      },
+      {
+        "command": "bonfisoft-issues.searchIssues",
+        "key": "ctrl+alt+shift+f",
+        "mac": "cmd+alt+shift+f"
+      }
+    ],
     "configuration": {
       "title": "BonfiSoft Development Tracker",
       "properties": {
@@ -60,14 +195,14 @@
     "lint": "eslint src --ext ts"
   },
   "devDependencies": {
-    "@types/node": "^20.10.0",
-    "@types/vscode": "^1.85.0",
-    "@typescript-eslint/eslint-plugin": "^6.15.0",
-    "@typescript-eslint/parser": "^6.15.0",
-    "esbuild": "^0.19.0",
-    "eslint": "^8.56.0",
-    "typescript": "^5.3.3",
-    "vitest": "^1.1.0",
-    "@vitest/coverage-v8": "^1.1.0"
+    "@types/node": "^25.6.0",
+    "@types/vscode": "^1.118.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.2",
+    "@typescript-eslint/parser": "^8.59.2",
+    "esbuild": "^0.28.0",
+    "eslint": "^10.3.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.5",
+    "@vitest/coverage-v8": "^4.1.5"
   }
 }
