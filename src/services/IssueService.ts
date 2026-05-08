@@ -5,6 +5,7 @@
  */
 
 import type { IssuesDatabase } from '../database/IssuesDatabase.ts';
+import type { UsersDatabase } from '../database/UsersDatabase.ts';
 import type { Issue, IssueInput, Status, Comment } from '../types/issue.ts';
 import { logger } from '../utils/logger.ts';
 
@@ -56,8 +57,12 @@ export class IssueService {
 
   /**
    * @param database - Database instance for persistence
+   * @param usersDatabase - Users database for managing user list
    */
-  constructor(private readonly database: IssuesDatabase) {}
+  constructor(
+    private readonly database: IssuesDatabase,
+    private readonly usersDatabase?: UsersDatabase
+  ) {}
 
   /**
    * Subscribe to issue creation events
@@ -138,6 +143,16 @@ export class IssueService {
 
     const issue = await this.database.createIssue(sanitizedInput);
 
+    // Add reporter and assignee to users database
+    if (this.usersDatabase) {
+      if (issue.reporter) {
+        await this.usersDatabase.addUser(issue.reporter);
+      }
+      if (issue.assignee) {
+        await this.usersDatabase.addUser(issue.assignee);
+      }
+    }
+
     logger.info(`created issue ${issue.id}: ${issue.title}`);
     this.onDidCreateIssueEmitter.emit(issue);
 
@@ -160,7 +175,7 @@ export class IssueService {
    * @returns Updated issue
    * @throws Error if issue not found or validation fails
    */
-  async updateIssue(id: string, update: Partial<Pick<Issue, 'title' | 'description' | 'status' | 'type' | 'severity' | 'urgency' | 'assignee' | 'tags' | 'comments'>>): Promise<Issue> {
+  async updateIssue(id: string, update: Partial<Pick<Issue, 'title' | 'description' | 'status' | 'type' | 'severity' | 'urgency' | 'assignee' | 'tags' | 'comments' | 'assigneeHistory'>>): Promise<Issue> {
     // Validate title if being updated
     if (update.title !== undefined) {
       const trimmedTitle = update.title.trim();
@@ -173,11 +188,29 @@ export class IssueService {
       update.title = trimmedTitle;
     }
 
+    // Handle assignee change history
+    if (update.assignee !== undefined) {
+      const currentIssue = await this.database.getIssueById(id);
+      if (currentIssue && currentIssue.assignee !== update.assignee) {
+        // Assignee is changing - add current assignee to history before updating
+        const newHistoryEntry = {
+          assignee: currentIssue.assignee || 'Unassigned',
+          changedAt: new Date().toISOString()
+        };
+        update.assigneeHistory = [newHistoryEntry, ...(currentIssue.assigneeHistory || [])];
+      }
+    }
+
     let issue: Issue;
     try {
       issue = await this.database.updateIssue(id, update);
     } catch (_error) {
       throw new Error('issue not found', { cause: _error });
+    }
+
+    // Add new assignee to users database
+    if (this.usersDatabase && update.assignee) {
+      await this.usersDatabase.addUser(update.assignee);
     }
 
     logger.info(`updated issue ${id}`);
@@ -260,6 +293,62 @@ export class IssueService {
 
       return inTitle || inDescription || inTags;
     });
+  }
+
+  // ── User Management ──────────────────────────────────────────────────────────
+
+  /**
+   * Get all unique assignees from all issues (excluding null)
+   * @returns Array of unique assignee names, sorted
+   */
+  async getUniqueAssignees(): Promise<string[]> {
+    const allIssues = await this.database.getAllIssues();
+    const assignees = new Set<string>();
+
+    for (const issue of allIssues) {
+      if (issue.assignee) {
+        assignees.add(issue.assignee);
+      }
+    }
+
+    return Array.from(assignees).sort();
+  }
+
+  /**
+   * Get all unique reporters from all issues
+   * @returns Array of unique reporter names, sorted
+   */
+  async getUniqueReporters(): Promise<string[]> {
+    const allIssues = await this.database.getAllIssues();
+    const reporters = new Set<string>();
+
+    for (const issue of allIssues) {
+      if (issue.reporter) {
+        reporters.add(issue.reporter);
+      }
+    }
+
+    return Array.from(reporters).sort();
+  }
+
+  /**
+   * Get all unique users (from users database or extract from issues)
+   * @returns Array of unique user names, sorted
+   */
+  async getAllUsers(): Promise<string[]> {
+    // Use users database if available
+    if (this.usersDatabase) {
+      return this.usersDatabase.getAllUsers();
+    }
+
+    // Fallback: extract from issues
+    const [assignees, reporters] = await Promise.all([
+      this.getUniqueAssignees(),
+      this.getUniqueReporters()
+    ]);
+
+    const allUsers = new Set([...assignees, ...reporters]);
+    return Array.from(allUsers).sort();
   }
 
   // ── Comment Management ─────────────────────────────────────────────────────

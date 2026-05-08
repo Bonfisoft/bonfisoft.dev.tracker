@@ -616,4 +616,181 @@ describe('IssueService', () => {
       expect(updated?.comments[0].body).toBe('Trimmed comment');
     });
   });
+
+  describe('user management', () => {
+    it('should get unique assignees', async () => {
+      await service.createIssue({
+        title: 'Issue 1',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal,
+        assignee: 'Alice'
+      });
+      await service.createIssue({
+        title: 'Issue 2',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal,
+        assignee: 'Bob'
+      });
+      await service.createIssue({
+        title: 'Issue 3',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal,
+        assignee: 'Alice' // Duplicate
+      });
+      await service.createIssue({
+        title: 'Issue 4',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal
+        // No assignee
+      });
+
+      const assignees = await service.getUniqueAssignees();
+
+      expect(assignees).toHaveLength(2);
+      expect(assignees).toContain('Alice');
+      expect(assignees).toContain('Bob');
+      expect(assignees[0]).toBe('Alice'); // Sorted
+      expect(assignees[1]).toBe('Bob');
+    });
+
+    it('should get unique reporters', async () => {
+      await service.createIssue({
+        title: 'Issue 1',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal,
+        reporter: 'Charlie'
+      });
+      await service.createIssue({
+        title: 'Issue 2',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal,
+        reporter: 'Diana'
+      });
+
+      const reporters = await service.getUniqueReporters();
+
+      expect(reporters).toHaveLength(2);
+      expect(reporters).toContain('Charlie');
+      expect(reporters).toContain('Diana');
+    });
+
+    it('should get all users (assignees + reporters combined)', async () => {
+      await service.createIssue({
+        title: 'Issue 1',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal,
+        assignee: 'Alice',
+        reporter: 'Bob'
+      });
+      await service.createIssue({
+        title: 'Issue 2',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal,
+        assignee: 'Charlie',
+        reporter: 'Alice' // Alice is both assignee and reporter
+      });
+
+      const users = await service.getAllUsers();
+
+      expect(users).toHaveLength(3); // Alice, Bob, Charlie (no duplicates)
+      expect(users).toContain('Alice');
+      expect(users).toContain('Bob');
+      expect(users).toContain('Charlie');
+    });
+
+    it('should return empty array when no users exist', async () => {
+      const assignees = await service.getUniqueAssignees();
+      const reporters = await service.getUniqueReporters();
+      const users = await service.getAllUsers();
+
+      expect(assignees).toEqual([]);
+      expect(reporters).toEqual([]);
+      expect(users).toEqual([]);
+    });
+  });
+
+  describe('assignee history', () => {
+    it('should track assignee changes in history', async () => {
+      const issue = await service.createIssue({
+        title: 'Test Issue',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal,
+        assignee: 'Alberto'
+      });
+
+      expect(issue.assigneeHistory).toEqual([]);
+
+      // Change assignee to Mark
+      const updated1 = await service.updateIssue(issue.id, { assignee: 'Mark' });
+      expect(updated1.assignee).toBe('Mark');
+      expect(updated1.assigneeHistory).toHaveLength(1);
+      expect(updated1.assigneeHistory![0].assignee).toBe('Alberto');
+      expect(updated1.assigneeHistory![0].changedAt).toBeDefined();
+
+      // Change assignee to Carol
+      const updated2 = await service.updateIssue(issue.id, { assignee: 'Carol' });
+      expect(updated2.assignee).toBe('Carol');
+      expect(updated2.assigneeHistory).toHaveLength(2);
+      expect(updated2.assigneeHistory![0].assignee).toBe('Mark');
+      expect(updated2.assigneeHistory![1].assignee).toBe('Alberto');
+    });
+
+    it('should not add history entry when assignee unchanged', async () => {
+      const issue = await service.createIssue({
+        title: 'Test Issue',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal,
+        assignee: 'Alberto'
+      });
+
+      // Update other field
+      const updated = await service.updateIssue(issue.id, { title: 'New Title' });
+      expect(updated.assignee).toBe('Alberto');
+      expect(updated.assigneeHistory).toEqual([]);
+
+      // Update to same assignee
+      const updated2 = await service.updateIssue(issue.id, { assignee: 'Alberto' });
+      expect(updated2.assigneeHistory).toEqual([]);
+    });
+
+    it('should track unassigned in history when clearing assignee', async () => {
+      const issue = await service.createIssue({
+        title: 'Test Issue',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal,
+        assignee: 'Alberto'
+      });
+
+      const updated = await service.updateIssue(issue.id, { assignee: null });
+      expect(updated.assignee).toBeNull();
+      expect(updated.assigneeHistory).toHaveLength(1);
+      expect(updated.assigneeHistory![0].assignee).toBe('Alberto');
+    });
+
+    it('should track unassigned to assignee in history', async () => {
+      const issue = await service.createIssue({
+        title: 'Test Issue',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal
+        // No assignee
+      });
+
+      const updated = await service.updateIssue(issue.id, { assignee: 'Mark' });
+      expect(updated.assignee).toBe('Mark');
+      expect(updated.assigneeHistory).toHaveLength(1);
+      expect(updated.assigneeHistory![0].assignee).toBe('Unassigned');
+    });
+  });
 });

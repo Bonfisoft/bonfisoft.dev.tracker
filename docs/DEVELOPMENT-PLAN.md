@@ -311,19 +311,23 @@ npx tsc --noEmit           # No type errors
 
 **Acceptance Criteria:**
 
-- [ ] **Title editable** - click to edit, Enter/Blur to save
-- [ ] **Description editable** - markdown editor with save/cancel
-- [ ] **Type dropdown** - select to save
-- [ ] **Severity dropdown** - select to save
-- [ ] **Urgency dropdown** - select to save
-- [ ] **Status dropdown** - select to save
-- [ ] **Assignee editable** - click to edit text input
-- [ ] All changes update `updatedAt`
-- [ ] All changes persist to storage
-- [ ] Auto-refresh when issue changes externally
-- [ ] Single instance per issue (singleton)
-- [ ] CSP security on webview
-- [ ] HTML escaping on all content
+- [x] **Title editable** - click to edit, Enter/Blur to save
+- [x] **Description editable** - textarea with save on blur
+- [x] **Type dropdown** - select to save
+- [x] **Severity dropdown** - select to save
+- [x] **Urgency dropdown** - select to save
+- [x] **Status dropdown** - select to save
+- [x] **Reporter display** - read-only field showing issue reporter
+- [x] **Assignee combobox** - text input with datalist autocomplete from users database
+- [x] **Users database** - JSON file storing all known users (reporters + assignees)
+- [x] **Assignee history** - tracks previous assignees with timestamps when changing
+- [x] **Comments** - add/delete with user attribution and timestamps
+- [x] All changes update `updatedAt`
+- [x] All changes persist to storage
+- [x] Auto-refresh when issue changes externally
+- [x] Single instance per issue (singleton)
+- [x] CSP security on webview (nonce-based)
+- [x] HTML escaping on all content (XSS prevention)
 
 **Template:** `docs/ai-agent-templates/panel-template.md`
 

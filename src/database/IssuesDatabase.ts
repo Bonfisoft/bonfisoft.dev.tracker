@@ -224,7 +224,8 @@ export class IssuesDatabase {
       relations: [],
       codeLinks: [],
       comments: [],
-      timeLogs: []
+      timeLogs: [],
+      assigneeHistory: []
     };
 
     // Write the issue file first, then update the counter in the manifest

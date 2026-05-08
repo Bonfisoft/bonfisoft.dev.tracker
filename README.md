@@ -45,6 +45,10 @@ BonfiSoft Development Tracker is a fully self-contained, project-local issue tra
 - **Issue Detail Panel** — Full webview panel for viewing and editing issues inline:
   - Click any issue title to open the detail panel
   - Edit title, description, type, status, severity, urgency, and assignee directly
+  - **Reporter field** — Displayed as read-only (set on issue creation)
+  - **Assignee combobox** — Type a new name or select from existing users (assignees + reporters)
+  - **User autocomplete** — Datalist populated from all existing users in the project
+  - **Assignee history** — Tracks previous assignees with timestamps when reassigning issues
   - Add comments with timestamps and user attribution
   - Delete comments with confirmation
   - HTML-escaped content for security (XSS prevention)

@@ -89,7 +89,8 @@ export class IssueDetailPanel {
     try {
       const issue = await this.issueService.getIssue(this.issueId);
       if (issue) {
-        this.panel.webview.html = this.getHtmlForWebview(issue);
+        const users = await this.issueService.getAllUsers();
+        this.panel.webview.html = this.getHtmlForWebview(issue, users);
         this.panel.title = `Issue: ${issue.title.slice(0, 30)}`;
         this.panel.webview.postMessage({
           type: 'issueUpdated',
@@ -165,7 +166,8 @@ export class IssueDetailPanel {
         });
 
         // Refresh the entire panel to show new comment
-        this.panel.webview.html = this.getHtmlForWebview(updated);
+        const users = await this.issueService.getAllUsers();
+        this.panel.webview.html = this.getHtmlForWebview(updated, users);
       }
     } catch (error) {
       logger.error(`failed to add comment: ${error}`);
@@ -197,7 +199,10 @@ export class IssueDetailPanel {
 
   private async loadIssue(): Promise<void> {
     try {
-      const issue = await this.issueService.getIssue(this.issueId);
+      const [issue, users] = await Promise.all([
+        this.issueService.getIssue(this.issueId),
+        this.issueService.getAllUsers()
+      ]);
 
       if (!issue) {
         this.panel.webview.html = this.getErrorHtml('issue not found');
@@ -205,14 +210,14 @@ export class IssueDetailPanel {
       }
 
       this.panel.title = `Issue: ${issue.title.slice(0, 30)}`;
-      this.panel.webview.html = this.getHtmlForWebview(issue);
+      this.panel.webview.html = this.getHtmlForWebview(issue, users);
     } catch (error) {
       logger.error(`failed to load issue ${this.issueId}: ${error}`);
       this.panel.webview.html = this.getErrorHtml('failed to load issue');
     }
   }
 
-  private getHtmlForWebview(issue: Issue): string {
+  private getHtmlForWebview(issue: Issue, users: string[]): string {
     const nonce = this.getNonce();
 
     return `<!DOCTYPE html>
@@ -255,6 +260,14 @@ export class IssueDetailPanel {
       background: var(--vscode-input-background);
       border-color: var(--vscode-focusBorder);
     }
+    .field-value.readonly {
+      background: var(--vscode-editor-inactiveSelectionBackground);
+      cursor: default;
+    }
+    .field-value.readonly:hover {
+      border-color: transparent;
+      background: var(--vscode-editor-inactiveSelectionBackground);
+    }
     input, select, textarea {
       background: var(--vscode-input-background);
       color: var(--vscode-input-foreground);
@@ -288,6 +301,20 @@ export class IssueDetailPanel {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 16px;
+    }
+    .grid .field {
+      min-width: 0;
+      overflow: visible;
+    }
+    .assignee-field {
+      position: relative;
+    }
+    #assignee::-webkit-calendar-picker-indicator {
+      opacity: 0.6;
+      cursor: pointer;
+    }
+    #assignee::-webkit-calendar-picker-indicator:hover {
+      opacity: 1;
     }
     .actions {
       margin-top: 20px;
@@ -375,6 +402,27 @@ export class IssueDetailPanel {
       padding: 16px;
       text-align: center;
     }
+    .assignee-history {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .history-entry {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 8px;
+      background: var(--vscode-editor-inactiveSelectionBackground);
+      border-radius: 3px;
+      font-size: 13px;
+    }
+    .history-assignee {
+      font-weight: 500;
+    }
+    .history-date {
+      color: var(--vscode-descriptionForeground);
+      font-size: 11px;
+    }
   </style>
 </head>
 <body>
@@ -418,10 +466,34 @@ export class IssueDetailPanel {
     </div>
   </div>
 
-  <div class="field">
-    <div class="field-label">Assignee</div>
-    <div class="field-value" id="assignee">${this.escapeHtml(issue.assignee || 'Unassigned')}</div>
+  <div class="grid">
+    <div class="field">
+      <div class="field-label">Reported by</div>
+      <div class="field-value readonly">${this.escapeHtml(issue.reporter || 'Unknown')}</div>
+    </div>
+
+    <div class="field assignee-field">
+      <div class="field-label">Assignee</div>
+      <input type="text" id="assignee" list="usersList" value="${this.escapeHtml(issue.assignee || '')}" placeholder="Type or select a user..." autocomplete="off">
+      <datalist id="usersList">
+        ${users.map(user => `<option value="${this.escapeHtml(user)}">${this.escapeHtml(user)}</option>`).join('')}
+      </datalist>
+    </div>
   </div>
+
+  ${issue.assigneeHistory && issue.assigneeHistory.length > 0 ? `
+  <div class="field">
+    <div class="field-label">Assignee History</div>
+    <div class="assignee-history">
+      ${issue.assigneeHistory.map((entry) => `
+        <div class="history-entry">
+          <span class="history-assignee">${this.escapeHtml(entry.assignee)}</span>
+          <span class="history-date">${new Date(entry.changedAt).toLocaleString()}</span>
+        </div>
+      `).join('')}
+    </div>
+  </div>
+  ` : ''}
 
   <div class="field">
     <div class="field-label">Comments (${issue.comments.length})</div>
@@ -513,9 +585,33 @@ export class IssueDetailPanel {
 
     // Attach event listeners after DOM is ready
     document.addEventListener('DOMContentLoaded', () => {
-      // Title and assignee click handlers
+      // Title click handler (uses inline edit)
       document.getElementById('title').addEventListener('click', () => startEdit('title'));
-      document.getElementById('assignee').addEventListener('click', () => startEdit('assignee'));
+
+      // Assignee change handler (uses combobox)
+      const assigneeInput = document.getElementById('assignee');
+      let previousAssignee = assigneeInput.value;
+
+      assigneeInput.addEventListener('focus', () => {
+        previousAssignee = assigneeInput.value;
+        assigneeInput.value = ''; // Clear to show all options
+      });
+
+      assigneeInput.addEventListener('blur', () => {
+        const value = assigneeInput.value.trim();
+        if (value !== previousAssignee) {
+          updateField('assignee', value || null);
+        }
+        if (!value) {
+          assigneeInput.value = previousAssignee; // Restore if empty
+        }
+      });
+
+      assigneeInput.addEventListener('change', (e) => {
+        const value = e.target.value.trim();
+        previousAssignee = value;
+        updateField('assignee', value || null);
+      });
 
       // Description blur handler
       document.getElementById('description').addEventListener('blur', () => {

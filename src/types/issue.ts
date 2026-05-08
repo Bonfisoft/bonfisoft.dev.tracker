@@ -178,6 +178,14 @@ export interface IssueInput {
 }
 
 /**
+ * Assignee history entry - tracks when assignee changed
+ */
+export interface AssigneeHistoryEntry {
+  assignee: string;
+  changedAt: ISO8601;
+}
+
+/**
  * Core issue entity
  */
 export interface Issue {
@@ -201,6 +209,7 @@ export interface Issue {
   codeLinks: CodeLink[];
   comments: Comment[];
   timeLogs: TimeLog[];
+  assigneeHistory: AssigneeHistoryEntry[];
 }
 
 /**

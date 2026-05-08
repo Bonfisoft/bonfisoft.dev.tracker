@@ -7,6 +7,7 @@ import * as vscode from 'vscode';
 import { logger, setLogLevel, LogLevel } from './utils/logger.ts';
 import { WorkspaceStorageProvider } from './storage/WorkspaceStorageProvider.ts';
 import { IssuesDatabase } from './database/IssuesDatabase.ts';
+import { UsersDatabase } from './database/UsersDatabase.ts';
 import { IssueService } from './services/IssueService.ts';
 import { SearchService } from './services/SearchService.ts';
 import { IssueTreeProvider } from './providers/IssueTreeProvider.ts';
@@ -48,7 +49,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const database = new IssuesDatabase(storage, defaultIdGenerator);
   await database.initialize();
 
-  const issueService = new IssueService(database);
+  const usersDatabase = new UsersDatabase(storage);
+  await usersDatabase.initialize();
+
+  const issueService = new IssueService(database, usersDatabase);
   const searchService = new SearchService(issueService);
 
   // Register tree view
