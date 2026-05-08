@@ -10,6 +10,7 @@ import { IssuesDatabase } from './database/IssuesDatabase.ts';
 import { IssueService } from './services/IssueService.ts';
 import { SearchService } from './services/SearchService.ts';
 import { IssueTreeProvider } from './providers/IssueTreeProvider.ts';
+import { IssueDetailPanel } from './panels/IssueDetailPanel.ts';
 import { registerIssueCommands } from './commands/issueCommands.ts';
 import { defaultIdGenerator } from './utils/idGenerator.ts';
 import { COMMANDS, VIEWS } from './constants.ts';
@@ -63,11 +64,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     })
   );
 
-  // VIEW_ISSUE stub — will open IssueDetailPanel in Phase 3.3
+  // VIEW_ISSUE — opens IssueDetailPanel webview
   context.subscriptions.push(
-    vscode.commands.registerCommand(COMMANDS.VIEW_ISSUE, (issueId: string) => {
+    vscode.commands.registerCommand(COMMANDS.VIEW_ISSUE, (node: unknown) => {
+      // Handle both IssueNode from tree and direct string ID
+      const issueId = typeof node === 'string' ? node : (node as { issue?: { id: string } })?.issue?.id;
+      if (!issueId) {
+        logger.warn('view issue: no issue id provided');
+        return;
+      }
       logger.info(`view issue: ${issueId}`);
-      vscode.window.showInformationMessage(`View Issue: ${issueId} (IssueDetailPanel — Phase 3.3)`);
+      IssueDetailPanel.show(issueId, issueService, context.extensionUri);
     })
   );
 

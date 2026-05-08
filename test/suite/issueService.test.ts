@@ -444,4 +444,176 @@ describe('IssueService', () => {
       expect(typeof disposable.dispose).toBe('function');
     });
   });
+
+  describe('comment management', () => {
+    it('should add comment to issue', async () => {
+      const issue = await service.createIssue({
+        title: 'Test Issue',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal
+      });
+
+      const updated = await service.addComment(issue.id, 'user1', 'This is a comment');
+
+      expect(updated).not.toBeNull();
+      expect(updated?.comments).toHaveLength(1);
+      expect(updated?.comments[0].body).toBe('This is a comment');
+      expect(updated?.comments[0].author).toBe('user1');
+      expect(updated?.comments[0].id).toBeDefined();
+      expect(updated?.comments[0].createdAt).toBeDefined();
+    });
+
+    it('should reject empty comment body', async () => {
+      const issue = await service.createIssue({
+        title: 'Test Issue',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal
+      });
+
+      await expect(service.addComment(issue.id, 'user1', ''))
+        .rejects.toThrow('comment body cannot be empty');
+      await expect(service.addComment(issue.id, 'user1', '   '))
+        .rejects.toThrow('comment body cannot be empty');
+    });
+
+    it('should reject comment exceeding max length', async () => {
+      const issue = await service.createIssue({
+        title: 'Test Issue',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal
+      });
+
+      const longBody = 'a'.repeat(5001);
+      await expect(service.addComment(issue.id, 'user1', longBody))
+        .rejects.toThrow('comment must be 5000 characters or less');
+    });
+
+    it('should return null when adding comment to non-existent issue', async () => {
+      const result = await service.addComment('non-existent-id', 'user1', 'Comment');
+      expect(result).toBeNull();
+    });
+
+    it('should delete comment from issue', async () => {
+      const issue = await service.createIssue({
+        title: 'Test Issue',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal
+      });
+
+      const updated = await service.addComment(issue.id, 'user1', 'Comment to delete');
+      const commentId = updated?.comments[0].id;
+
+      const afterDelete = await service.deleteComment(issue.id, commentId!);
+
+      expect(afterDelete).not.toBeNull();
+      expect(afterDelete?.comments).toHaveLength(0);
+    });
+
+    it('should throw when deleting non-existent comment', async () => {
+      const issue = await service.createIssue({
+        title: 'Test Issue',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal
+      });
+
+      await expect(service.deleteComment(issue.id, 'fake-comment-id'))
+        .rejects.toThrow('comment not found');
+    });
+
+    it('should return null when deleting comment from non-existent issue', async () => {
+      const result = await service.deleteComment('non-existent-id', 'comment-id');
+      expect(result).toBeNull();
+    });
+
+    it('should reorder comments', async () => {
+      const issue = await service.createIssue({
+        title: 'Test Issue',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal
+      });
+
+      await service.addComment(issue.id, 'user1', 'First comment');
+      await service.addComment(issue.id, 'user1', 'Second comment');
+      await service.addComment(issue.id, 'user1', 'Third comment');
+
+      let updated = await service.getIssue(issue.id);
+      const originalOrder = updated!.comments.map(c => c.id);
+
+      // Reverse the order
+      const newOrder = [...originalOrder].reverse();
+      updated = await service.reorderComments(issue.id, newOrder);
+
+      expect(updated?.comments[0].body).toBe('Third comment');
+      expect(updated?.comments[1].body).toBe('Second comment');
+      expect(updated?.comments[2].body).toBe('First comment');
+    });
+
+    it('should throw when reordering with wrong count', async () => {
+      const issue = await service.createIssue({
+        title: 'Test Issue',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal
+      });
+
+      await service.addComment(issue.id, 'user1', 'Comment 1');
+      await service.addComment(issue.id, 'user1', 'Comment 2');
+
+      await expect(service.reorderComments(issue.id, ['only-one-id']))
+        .rejects.toThrow('ordered ids must match comment count');
+    });
+
+    it('should throw when reordering with invalid comment id', async () => {
+      const issue = await service.createIssue({
+        title: 'Test Issue',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal
+      });
+
+      await service.addComment(issue.id, 'user1', 'Comment 1');
+      await service.addComment(issue.id, 'user1', 'Comment 2');
+
+      const updated = await service.getIssue(issue.id);
+      const realId = updated?.comments[0].id;
+
+      await expect(service.reorderComments(issue.id, [realId!, 'fake-id']))
+        .rejects.toThrow('invalid comment id');
+    });
+
+    it('should emit event when comment is added', async () => {
+      const handler = vi.fn();
+      service.onDidUpdateIssue(handler);
+
+      const issue = await service.createIssue({
+        title: 'Test Issue',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal
+      });
+
+      await service.addComment(issue.id, 'user1', 'New comment');
+
+      expect(handler).toHaveBeenCalled();
+    });
+
+    it('should trim comment body', async () => {
+      const issue = await service.createIssue({
+        title: 'Test Issue',
+        type: IssueType.Bug,
+        severity: Severity.High,
+        urgency: Urgency.Normal
+      });
+
+      const updated = await service.addComment(issue.id, 'user1', '  Trimmed comment  ');
+
+      expect(updated?.comments[0].body).toBe('Trimmed comment');
+    });
+  });
 });

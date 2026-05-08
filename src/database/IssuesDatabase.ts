@@ -141,7 +141,7 @@ export class IssuesDatabase {
       logger.info(`loaded database with ${this.issueCache.size} issues`);
     } catch (error) {
       logger.error(`failed to initialize database: ${error}`);
-      throw new Error('database initialization failed');
+      throw new Error('database initialization failed', { cause: error });
     }
   }
 

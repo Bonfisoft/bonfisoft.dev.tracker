@@ -166,7 +166,10 @@
         "bonfisoft-issues.storageLocation": {
           "type": "string",
           "default": "workspace",
-          "enum": ["workspace", "global"],
+          "enum": [
+            "workspace",
+            "global"
+          ],
           "description": "Where to store issues: workspace (.vscode/issues/) or global (VS Code global storage)"
         },
         "bonfisoft-issues.author": {
@@ -177,7 +180,15 @@
         "bonfisoft-issues.defaultIssueType": {
           "type": "string",
           "default": "bug",
-          "enum": ["bug", "feature", "task", "enhancement", "question", "documentation", "other"],
+          "enum": [
+            "bug",
+            "feature",
+            "task",
+            "enhancement",
+            "question",
+            "documentation",
+            "other"
+          ],
           "description": "Default issue type pre-selected when creating a new issue"
         }
       }
@@ -196,14 +207,16 @@
     "lint": "eslint src --ext ts"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^25.6.0",
     "@types/vscode": "^1.118.0",
     "@typescript-eslint/eslint-plugin": "^8.59.2",
     "@typescript-eslint/parser": "^8.59.2",
+    "@vitest/coverage-v8": "^4.1.5",
     "esbuild": "^0.28.0",
     "eslint": "^10.3.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.5",
-    "@vitest/coverage-v8": "^4.1.5"
+    "typescript-eslint": "^8.59.2",
+    "vitest": "^4.1.5"
   }
 }

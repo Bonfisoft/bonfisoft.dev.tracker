@@ -114,7 +114,7 @@ export class WorkspaceStorageProvider implements IStorageProvider {
       logger.debug(`deleted ${collection}/${id}.json`);
     } catch (error) {
       logger.error(`failed to delete ${collection}/${id}: ${error}`);
-      throw new Error(`failed to delete ${collection}/${id}`);
+      throw new Error(`failed to delete ${collection}/${id}`, { cause: error });
     }
   }
 
@@ -149,7 +149,7 @@ export class WorkspaceStorageProvider implements IStorageProvider {
       await vscode.workspace.fs.rename(tempFile, target, { overwrite: true });
     } catch (error) {
       logger.error(`atomic write failed for ${target}: ${error}`);
-      throw new Error(`failed to write ${target}`);
+      throw new Error(`failed to write ${target}`, { cause: error });
     }
   }
 }

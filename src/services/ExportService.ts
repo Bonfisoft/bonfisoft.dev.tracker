@@ -76,9 +76,9 @@ export class ExportService {
     // Parse JSON
     try {
       issuesToImport = JSON.parse(json);
-    } catch (error) {
+    } catch (_error) {
       logger.error('failed to parse import json');
-      throw new Error('invalid json format');
+      throw new Error('invalid json format', { cause: _error });
     }
 
     // Validate it's an array

@@ -9,10 +9,25 @@ import type { SearchService } from '../services/SearchService.ts';
 import { IssueType, Severity, Urgency, Status } from '../types/issue.ts';
 import { COMMANDS } from '../constants.ts';
 import { logger } from '../utils/logger.ts';
+import type { IssueNode } from '../providers/IssueTreeProvider.ts';
 
 /** QuickPick item that carries an issue id */
 interface IssueQuickPickItem extends vscode.QuickPickItem {
   issueId: string;
+}
+
+/**
+ * Extract issue ID from context menu argument (IssueNode) or direct string
+ */
+function extractIssueId(node: IssueNode | string): string {
+  if (typeof node === 'string') {
+    return node;
+  }
+  // IssueNode from context menu
+  if (node && typeof node === 'object' && 'issue' in node) {
+    return node.issue.id;
+  }
+  throw new Error('invalid issue reference');
 }
 
 /**
@@ -28,20 +43,20 @@ export function registerIssueCommands(
     vscode.commands.registerCommand(COMMANDS.CREATE_ISSUE, () =>
       createIssueHandler(issueService)
     ),
-    vscode.commands.registerCommand(COMMANDS.EDIT_ISSUE, (issueId: string) =>
-      editIssueHandler(issueService, issueId)
+    vscode.commands.registerCommand(COMMANDS.EDIT_ISSUE, (node: IssueNode | string) =>
+      editIssueHandler(issueService, extractIssueId(node))
     ),
-    vscode.commands.registerCommand(COMMANDS.DELETE_ISSUE, (issueId: string) =>
-      deleteIssueHandler(issueService, issueId)
+    vscode.commands.registerCommand(COMMANDS.DELETE_ISSUE, (node: IssueNode | string) =>
+      deleteIssueHandler(issueService, extractIssueId(node))
     ),
-    vscode.commands.registerCommand(COMMANDS.CLOSE_ISSUE, (issueId: string) =>
-      changeStatusHandler(issueService, issueId, Status.Closed, 'closed')
+    vscode.commands.registerCommand(COMMANDS.CLOSE_ISSUE, (node: IssueNode | string) =>
+      changeStatusHandler(issueService, extractIssueId(node), Status.Closed, 'closed')
     ),
-    vscode.commands.registerCommand(COMMANDS.RESOLVE_ISSUE, (issueId: string) =>
-      changeStatusHandler(issueService, issueId, Status.Resolved, 'resolved')
+    vscode.commands.registerCommand(COMMANDS.RESOLVE_ISSUE, (node: IssueNode | string) =>
+      changeStatusHandler(issueService, extractIssueId(node), Status.Resolved, 'resolved')
     ),
-    vscode.commands.registerCommand(COMMANDS.REOPEN_ISSUE, (issueId: string) =>
-      changeStatusHandler(issueService, issueId, Status.Open, 'reopened')
+    vscode.commands.registerCommand(COMMANDS.REOPEN_ISSUE, (node: IssueNode | string) =>
+      changeStatusHandler(issueService, extractIssueId(node), Status.Open, 'reopened')
     ),
     vscode.commands.registerCommand(COMMANDS.SEARCH_ISSUES, () =>
       searchIssuesHandler(issueService, searchService)

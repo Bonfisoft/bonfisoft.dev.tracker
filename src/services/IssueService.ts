@@ -5,7 +5,7 @@
  */
 
 import type { IssuesDatabase } from '../database/IssuesDatabase.ts';
-import type { Issue, IssueInput, Status } from '../types/issue.ts';
+import type { Issue, IssueInput, Status, Comment } from '../types/issue.ts';
 import { logger } from '../utils/logger.ts';
 
 /**
@@ -87,6 +87,25 @@ export class IssueService {
   }
 
   /**
+   * Subscribe to any issue change (create, update, delete)
+   * @param listener - Callback invoked when any issue changes
+   * @returns Disposable to unsubscribe
+   */
+  onDidChangeIssues(listener: () => void): { dispose: () => void } {
+    const createDisposable = this.onDidCreateIssueEmitter.subscribe(() => listener());
+    const updateDisposable = this.onDidUpdateIssueEmitter.subscribe(() => listener());
+    const deleteDisposable = this.onDidDeleteIssueEmitter.subscribe(() => listener());
+
+    return {
+      dispose: () => {
+        createDisposable.dispose();
+        updateDisposable.dispose();
+        deleteDisposable.dispose();
+      }
+    };
+  }
+
+  /**
    * Validate issue input
    * @param input - Issue input to validate
    * @throws Error if validation fails
@@ -141,7 +160,7 @@ export class IssueService {
    * @returns Updated issue
    * @throws Error if issue not found or validation fails
    */
-  async updateIssue(id: string, update: Partial<Pick<Issue, 'title' | 'description' | 'status' | 'type' | 'severity' | 'urgency' | 'assignee' | 'tags'>>): Promise<Issue> {
+  async updateIssue(id: string, update: Partial<Pick<Issue, 'title' | 'description' | 'status' | 'type' | 'severity' | 'urgency' | 'assignee' | 'tags' | 'comments'>>): Promise<Issue> {
     // Validate title if being updated
     if (update.title !== undefined) {
       const trimmedTitle = update.title.trim();
@@ -157,8 +176,8 @@ export class IssueService {
     let issue: Issue;
     try {
       issue = await this.database.updateIssue(id, update);
-    } catch (error) {
-      throw new Error('issue not found');
+    } catch (_error) {
+      throw new Error('issue not found', { cause: _error });
     }
 
     logger.info(`updated issue ${id}`);
@@ -175,8 +194,8 @@ export class IssueService {
   async deleteIssue(id: string): Promise<void> {
     try {
       await this.database.deleteIssue(id);
-    } catch (error) {
-      throw new Error('issue not found');
+    } catch (_error) {
+      throw new Error('issue not found', { cause: _error });
     }
 
     logger.info(`deleted issue ${id}`);
@@ -241,5 +260,91 @@ export class IssueService {
 
       return inTitle || inDescription || inTags;
     });
+  }
+
+  // ── Comment Management ─────────────────────────────────────────────────────
+
+  /**
+   * Add a comment to an issue
+   * @param issueId - Issue ID to add comment to
+   * @param author - User ID of the comment author
+   * @param body - Comment text
+   * @returns Updated issue or null if not found
+   */
+  async addComment(issueId: string, author: string, body: string): Promise<Issue | null> {
+    if (!body || body.trim().length === 0) {
+      throw new Error('comment body cannot be empty');
+    }
+
+    const trimmedBody = body.trim();
+    if (trimmedBody.length > 5000) {
+      throw new Error('comment must be 5000 characters or less');
+    }
+
+    const issue = await this.database.getIssueById(issueId);
+    if (!issue) {
+      return null;
+    }
+
+    const newComment = {
+      id: crypto.randomUUID(),
+      author,
+      body: trimmedBody,
+      createdAt: new Date().toISOString(),
+      updatedAt: null
+    };
+
+    const updatedComments = [...issue.comments, newComment];
+
+    return this.updateIssue(issueId, { comments: updatedComments });
+  }
+
+  /**
+   * Delete a comment from an issue
+   * @param issueId - Issue ID
+   * @param commentId - Comment ID to delete
+   * @returns Updated issue or null if not found
+   */
+  async deleteComment(issueId: string, commentId: string): Promise<Issue | null> {
+    const issue = await this.database.getIssueById(issueId);
+    if (!issue) {
+      return null;
+    }
+
+    const updatedComments = issue.comments.filter((c: Comment) => c.id !== commentId);
+
+    if (updatedComments.length === issue.comments.length) {
+      throw new Error('comment not found');
+    }
+
+    return this.updateIssue(issueId, { comments: updatedComments });
+  }
+
+  /**
+   * Reorder comments in an issue
+   * @param issueId - Issue ID
+   * @param orderedIds - Array of comment IDs in new order
+   * @returns Updated issue or null if not found
+   */
+  async reorderComments(issueId: string, orderedIds: string[]): Promise<Issue | null> {
+    const issue = await this.database.getIssueById(issueId);
+    if (!issue) {
+      return null;
+    }
+
+    if (orderedIds.length !== issue.comments.length) {
+      throw new Error('ordered ids must match comment count');
+    }
+
+    const commentMap = new Map(issue.comments.map((c: Comment) => [c.id, c]));
+    const reorderedComments = orderedIds.map(id => {
+      const comment = commentMap.get(id);
+      if (!comment) {
+        throw new Error(`invalid comment id: ${id}`);
+      }
+      return comment;
+    });
+
+    return this.updateIssue(issueId, { comments: reorderedComments });
   }
 }

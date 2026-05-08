@@ -42,6 +42,13 @@ BonfiSoft Development Tracker is a fully self-contained, project-local issue tra
 
 - **Primary sidebar** — Four views: Issues, Milestones, Sprints, Time Tracking
 - **Grouping** — Group issues by status, type, severity, urgency, milestone, sprint, or assignee
+- **Issue Detail Panel** — Full webview panel for viewing and editing issues inline:
+  - Click any issue title to open the detail panel
+  - Edit title, description, type, status, severity, urgency, and assignee directly
+  - Add comments with timestamps and user attribution
+  - Delete comments with confirmation
+  - HTML-escaped content for security (XSS prevention)
+  - Content Security Policy (CSP) protection
 - **CodeLens** — Inline `[🔗 Issue #N: <title>]` lens above linked lines — click to view
 - **Gutter decorations** — Visual marker on every line linked to an issue
 - **Status bar** — Live count of open / critical issues; red background when critical exist
