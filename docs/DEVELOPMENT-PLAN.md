@@ -58,28 +58,31 @@ This plan delivers an MVP extension in **4 phases** (~90 hours), followed by **4
 
 ---
 
-### 1.2 Storage Abstraction (Day 2-3)
+### 1.2 Storage Abstraction (Day 2-3) ✅ COMPLETE
 
-**Files to Create:**
+**Files Created:**
 
 - `src/storage/IStorageProvider.ts` - Interface
 - `src/storage/WorkspaceStorageProvider.ts` - Workspace implementation
-- `src/storage/GlobalStorageProvider.ts` - Global implementation
-- `src/storage/StorageProviderFactory.ts` - Factory
+- `src/storage/GlobalStorageProvider.ts` - Global implementation _(future)_
+- `src/storage/StorageProviderFactory.ts` - Factory _(future)_
 
 **Requirements:**
 
 - `docs/requirements/non-functional-requirements.md` - Storage requirements
 
-**Tests:** `test/suite/storageProvider.test.ts`
+**Tests:** `test/suite/storageProvider.test.ts` — 24 contract tests (run against both `WorkspaceStorageProvider` and `InMemoryStorageProvider`)
 
 **Acceptance Criteria:**
 
-- [ ] Interface with read/write/exists methods
-- [ ] WorkspaceStorageProvider uses `.vscode/issues/issues.json`
-- [ ] GlobalStorageProvider uses VS Code globalStorage
-- [ ] Atomic writes (temp + rename)
-- [ ] Factory selects based on configuration
+- [x] Interface: `readManifest`, `writeManifest`, `listFiles`, `readFile`, `writeFile`, `deleteFile`
+- [x] `WorkspaceStorageProvider`: manifest at `.vscode/issues/db.json`; issues at `.vscode/issues/issues/<uuid>.json`
+- [x] Atomic writes (temp + rename) for every file
+- [ ] `GlobalStorageProvider` — Phase 4 / Story 4.2
+- [ ] Factory selects based on configuration — Phase 4
+
+**Architecture note (2026-05-08):** Changed from single-file `issues.json` to per-issue files.
+See `docs/requirements/data-model.md` § Storage Format for the full layout.
 
 ---
 

@@ -200,14 +200,24 @@ export const commands = {
 
 ```typescript
 export class InMemoryStorageProvider implements IStorageProvider {
-  private data: Map<string, string> = new Map();
-  
-  async read(): Promise<string | null> {
-    return this.data.get('issues') || null;
+  private manifest: string | null = null;
+  private files: Map<string, Map<string, string>> = new Map();
+
+  async readManifest(): Promise<string | null> { return this.manifest; }
+  async writeManifest(content: string): Promise<void> { this.manifest = content; }
+
+  async listFiles(collection: string): Promise<string[]> {
+    return Array.from(this.files.get(collection)?.keys() ?? []);
   }
-  
-  async write(content: string): Promise<void> {
-    this.data.set('issues', content);
+  async readFile(collection: string, id: string): Promise<string | null> {
+    return this.files.get(collection)?.get(id) ?? null;
+  }
+  async writeFile(collection: string, id: string, content: string): Promise<void> {
+    if (!this.files.has(collection)) this.files.set(collection, new Map());
+    this.files.get(collection)!.set(id, content);
+  }
+  async deleteFile(collection: string, id: string): Promise<void> {
+    this.files.get(collection)?.delete(id);
   }
 }
 ```
@@ -328,17 +338,18 @@ it('edits issue title and persists change', async () => {
 #### T-003: Storage Persistence
 
 ```typescript
-it('persists to storage on create', async () => {
+it('persists each issue to its own file on create', async () => {
   // Arrange
   const storage = new InMemoryStorageProvider();
-  const database = new IssueDatabase(storage);
-  
+  const database = new IssuesDatabase(storage, idGenerator);
+  await database.initialize();
+
   // Act
-  await database.createIssue({...});
-  const saved = await storage.read();
-  
+  const created = await database.createIssue({...});
+  const saved = await storage.readFile('issues', created.id);
+
   // Assert
-  expect(saved).toContain('issue');
+  expect(JSON.parse(saved!).title).toBe(created.title);
 });
 ```
 

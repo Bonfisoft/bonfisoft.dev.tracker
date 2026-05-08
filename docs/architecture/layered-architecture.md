@@ -146,23 +146,32 @@ class IssueService {
 **Example**:
 
 ```typescript
-class IssueDatabase {
-  private issues: Issue[] = [];
-  private onChangeEmitter = new EventEmitter<Issue[]>();
-  
+class IssuesDatabase {
+  private issueCache: Map<string, Issue> = new Map();
+  private manifest: Manifest | null = null;
+
+  async initialize(): Promise<void> {
+    this.manifest = JSON.parse(await this.storage.readManifest() ?? '{}');
+    const ids = await this.storage.listFiles('issues');
+    for (const id of ids) {
+      const content = await this.storage.readFile('issues', id);
+      if (content) this.issueCache.set(id, JSON.parse(content));
+    }
+  }
+
   async createIssue(data: IssueInput): Promise<Issue> {
     const issue = { ...data, id: generateUUID() };
-    this.issues.push(issue);
-    await this.saveToStorage();
-    this.onChangeEmitter.emit(this.issues);
+    await this.storage.writeFile('issues', issue.id, JSON.stringify(issue)); // one file
+    this.issueCache.set(issue.id, issue);                                    // update cache
+    this.manifest!.metadata.issueCounter++;
+    await this.storage.writeManifest(JSON.stringify(this.manifest));          // update counter
+    this._emitter.emit('change');
     return issue;
-  }
-  
-  onDidChangeIssues(callback: (issues: Issue[]) => void): Disposable {
-    return this.onChangeEmitter.on('change', callback);
   }
 }
 ```
+
+Key invariant: **reads always serve from the in-memory cache** — no disk I/O on queries.
 
 ---
 
@@ -211,11 +220,20 @@ Panels ───────┘  │
 // src/storage/IStorageProvider.ts
 
 export interface IStorageProvider {
-  read(): Promise<string | null>;
-  write(content: string): Promise<void>;
-  exists(): Promise<boolean>;
+  // Manifest (db.json)
+  readManifest(): Promise<string | null>;
+  writeManifest(content: string): Promise<void>;
+
+  // Per-entity files (e.g. collection='issues', id='<uuid>')
+  listFiles(collection: string): Promise<string[]>;
+  readFile(collection: string, id: string): Promise<string | null>;
+  writeFile(collection: string, id: string, content: string): Promise<void>;
+  deleteFile(collection: string, id: string): Promise<void>;
 }
 ```
+
+Each `collection` maps to a sub-folder (`issues/`, `milestones/`, etc.).
+Atomicity is preserved via a write-to-temp + rename pattern per file.
 
 ### IVersionProvider
 
@@ -353,7 +371,7 @@ Extend via:
 
 Small, focused interfaces:
 
-- IStorageProvider (4 methods)
+- IStorageProvider (6 methods — manifest + per-entity file operations)
 - IVersionProvider (3 methods)
 
 Not large "god" interfaces.

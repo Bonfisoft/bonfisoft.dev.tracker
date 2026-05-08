@@ -22,17 +22,17 @@ describe('IssuesDatabase', () => {
       expect(data).toEqual([]);
     });
 
-    it('should load existing database from storage', async () => {
-      const existingDb = {
-        schemaVersion: '1.0.0',
+    it('should load existing issues from storage files', async () => {
+      const manifest = {
+        schemaVersion: '2.0.0',
         project: { name: 'Test', createdAt: '2026-01-01T00:00:00Z' },
-        issues: [{ id: '1', title: 'Existing' }],
         milestones: [],
         sprints: [],
         templates: [],
         metadata: { lastExportAt: null, issueCounter: 1 }
       };
-      await storage.write(JSON.stringify(existingDb));
+      await storage.writeManifest(JSON.stringify(manifest));
+      await storage.writeFile('issues', '1', JSON.stringify({ id: '1', title: 'Existing' }));
 
       await database.initialize();
       const issues = await database.getAllIssues();
@@ -40,11 +40,11 @@ describe('IssuesDatabase', () => {
       expect(issues[0].title).toBe('Existing');
     });
 
-    it('should set schema version to 1.0.0', async () => {
+    it('should set schema version to 2.0.0', async () => {
       await database.initialize();
-      const raw = await storage.read();
+      const raw = await storage.readManifest();
       const parsed = JSON.parse(raw!);
-      expect(parsed.schemaVersion).toBe('1.0.0');
+      expect(parsed.schemaVersion).toBe('2.0.0');
     });
   });
 
@@ -100,7 +100,7 @@ describe('IssuesDatabase', () => {
       expect(issue.updatedAt).toBe(issue.createdAt);
     });
 
-    it('should persist to storage', async () => {
+    it('should persist issue to its own file', async () => {
       const input: IssueInput = {
         title: 'Persisted',
         type: IssueType.Feature,
@@ -108,15 +108,15 @@ describe('IssuesDatabase', () => {
         urgency: Urgency.Low
       };
 
-      await database.createIssue(input);
+      const created = await database.createIssue(input);
 
-      const raw = await storage.read();
+      const raw = await storage.readFile('issues', created.id);
+      expect(raw).not.toBeNull();
       const parsed = JSON.parse(raw!);
-      expect(parsed.issues).toHaveLength(1);
-      expect(parsed.issues[0].title).toBe('Persisted');
+      expect(parsed.title).toBe('Persisted');
     });
 
-    it('should increment issue counter', async () => {
+    it('should increment issue counter in manifest', async () => {
       const input: IssueInput = {
         title: 'Test',
         type: IssueType.Task,
@@ -127,7 +127,7 @@ describe('IssuesDatabase', () => {
       await database.createIssue(input);
       await database.createIssue(input);
 
-      const raw = await storage.read();
+      const raw = await storage.readManifest();
       const parsed = JSON.parse(raw!);
       expect(parsed.metadata.issueCounter).toBe(2);
     });
@@ -280,7 +280,7 @@ describe('IssuesDatabase', () => {
       expect(updated.updatedAt).not.toBe(created.updatedAt);
     });
 
-    it('should persist changes', async () => {
+    it('should persist updated issue to its own file', async () => {
       const input: IssueInput = {
         title: 'Test',
         type: IssueType.Task,
@@ -291,7 +291,7 @@ describe('IssuesDatabase', () => {
       const created = await database.createIssue(input);
       await database.updateIssue(created.id, { title: 'Persisted' });
 
-      // Reload database
+      // Reload database from storage
       const db2 = new IssuesDatabase(storage, idGenerator);
       await db2.initialize();
       const found = await db2.getIssueById(created.id);
@@ -325,7 +325,7 @@ describe('IssuesDatabase', () => {
       expect(found).toBeNull();
     });
 
-    it('should persist deletion', async () => {
+    it('should remove the issue file on deletion', async () => {
       const input: IssueInput = {
         title: 'To Delete',
         type: IssueType.Task,
@@ -336,9 +336,8 @@ describe('IssuesDatabase', () => {
       const created = await database.createIssue(input);
       await database.deleteIssue(created.id);
 
-      const raw = await storage.read();
-      const parsed = JSON.parse(raw!);
-      expect(parsed.issues).toHaveLength(0);
+      const raw = await storage.readFile('issues', created.id);
+      expect(raw).toBeNull();
     });
   });
 

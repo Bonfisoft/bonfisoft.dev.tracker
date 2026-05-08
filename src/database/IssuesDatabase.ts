@@ -11,13 +11,35 @@ import {
   Issue,
   IssueInput,
   Status,
-  type IssuesDatabase as IssuesDatabaseType,
+  type Milestone,
+  type Sprint,
+  type Template,
   ISO8601,
   UUID
 } from '../types/issue.ts';
 import { logger } from '../utils/logger.ts';
 
-const SCHEMA_VERSION = '1.0.0';
+const SCHEMA_VERSION = '2.0.0';
+const ISSUES_COLLECTION = 'issues';
+
+/**
+ * Manifest structure stored in db.json
+ * Contains everything except the issue files themselves
+ */
+interface Manifest {
+  schemaVersion: string;
+  project: {
+    name: string;
+    createdAt: ISO8601;
+  };
+  milestones: Milestone[];
+  sprints: Sprint[];
+  templates: Template[];
+  metadata: {
+    lastExportAt: ISO8601 | null;
+    issueCounter: number;
+  };
+}
 
 /**
  * Search filters for issues
@@ -36,10 +58,18 @@ export interface IssueSearchFilters {
 
 /**
  * Issues Database - main data access layer
- * Coordinates between storage, types, and business logic
+ * Coordinates between storage, types, and business logic.
+ *
+ * Storage layout:
+ *   db.json                  ← manifest (project info, milestones, sprints, templates, counters)
+ *   issues/<id>.json         ← one file per issue
+ *
+ * In-memory cache (Map<id, Issue>) is loaded at initialize() and kept
+ * in sync by every mutation, so reads never hit the disk.
  */
 export class IssuesDatabase {
-  private data: IssuesDatabaseType | null = null;
+  private manifest: Manifest | null = null;
+  private issueCache: Map<string, Issue> = new Map();
   private loaded = false;
   private readonly _emitter = new EventEmitter();
 
@@ -67,23 +97,48 @@ export class IssuesDatabase {
   ) {}
 
   /**
-   * Initialize or load the database
-   * Creates new database if storage is empty
+   * Initialize or load the database.
+   * Reads the manifest and all issue files, populating the in-memory cache.
    */
   async initialize(): Promise<void> {
     try {
-      const stored = await this.storage.read();
+      const storedManifest = await this.storage.readManifest();
 
-      if (stored) {
-        this.data = JSON.parse(stored) as IssuesDatabaseType;
-        logger.info(`loaded database with ${this.data.issues.length} issues`);
+      if (storedManifest) {
+        this.manifest = JSON.parse(storedManifest) as Manifest;
       } else {
-        this.data = this.createEmptyDatabase();
-        await this.persist();
-        logger.info('created new empty database');
+        this.manifest = this.createEmptyManifest();
+        await this.persistManifest();
+        logger.info('created new empty database manifest');
+      }
+
+      // Load all issue files into the in-memory cache
+      const ids = await this.storage.listFiles(ISSUES_COLLECTION);
+      const loaded: Issue[] = [];
+      const failed: string[] = [];
+
+      await Promise.all(ids.map(async (id) => {
+        const content = await this.storage.readFile(ISSUES_COLLECTION, id);
+        if (content) {
+          try {
+            loaded.push(JSON.parse(content) as Issue);
+          } catch {
+            failed.push(id);
+            logger.error(`failed to parse import json for issue ${id}`);
+          }
+        }
+      }));
+
+      for (const issue of loaded) {
+        this.issueCache.set(issue.id, issue);
+      }
+
+      if (failed.length > 0) {
+        logger.error(`failed to load ${failed.length} issue file(s): ${failed.join(', ')}`);
       }
 
       this.loaded = true;
+      logger.info(`loaded database with ${this.issueCache.size} issues`);
     } catch (error) {
       logger.error(`failed to initialize database: ${error}`);
       throw new Error('database initialization failed');
@@ -91,16 +146,15 @@ export class IssuesDatabase {
   }
 
   /**
-   * Create a new empty database structure
+   * Create a new empty manifest
    */
-  private createEmptyDatabase(): IssuesDatabaseType {
+  private createEmptyManifest(): Manifest {
     return {
       schemaVersion: SCHEMA_VERSION,
       project: {
         name: '',
         createdAt: new Date().toISOString() as ISO8601
       },
-      issues: [],
       milestones: [],
       sprints: [],
       templates: [],
@@ -112,20 +166,20 @@ export class IssuesDatabase {
   }
 
   /**
-   * Save current state to storage
+   * Persist the manifest to storage
    */
-  private async persist(): Promise<void> {
-    if (!this.data) {
+  private async persistManifest(): Promise<void> {
+    if (!this.manifest) {
       throw new Error('database not initialized');
     }
-    await this.storage.write(JSON.stringify(this.data, null, 2));
+    await this.storage.writeManifest(JSON.stringify(this.manifest, null, 2));
   }
 
   /**
    * Ensure database is loaded
    */
   private ensureLoaded(): void {
-    if (!this.loaded || !this.data) {
+    if (!this.loaded || !this.manifest) {
       throw new Error('database not initialized - call initialize() first');
     }
   }
@@ -140,7 +194,7 @@ export class IssuesDatabase {
   // ==================== CRUD Operations ====================
 
   /**
-   * Create a new issue
+   * Create a new issue — writes one issue file and updates the manifest counter
    * @param input - Issue data (without ID, timestamps, etc.)
    * @returns Created issue with all fields populated
    */
@@ -173,10 +227,13 @@ export class IssuesDatabase {
       timeLogs: []
     };
 
-    this.data!.issues.push(issue);
-    this.data!.metadata.issueCounter++;
+    // Write the issue file first, then update the counter in the manifest
+    await this.storage.writeFile(ISSUES_COLLECTION, issue.id, JSON.stringify(issue, null, 2));
+    this.issueCache.set(issue.id, issue);
 
-    await this.persist();
+    this.manifest!.metadata.issueCounter++;
+    await this.persistManifest();
+
     this.notifyChange();
     logger.debug(`created issue ${issue.id}: ${issue.title}`);
 
@@ -184,27 +241,27 @@ export class IssuesDatabase {
   }
 
   /**
-   * Get all issues
+   * Get all issues from the in-memory cache
    * @returns Array of all issues
    */
   async getAllIssues(): Promise<Issue[]> {
     this.ensureLoaded();
-    return this.clone(this.data!.issues);
+    return this.clone(Array.from(this.issueCache.values()));
   }
 
   /**
-   * Get issue by ID
+   * Get issue by ID from the in-memory cache
    * @param id - Issue ID
    * @returns Issue or null if not found
    */
   async getIssueById(id: string): Promise<Issue | null> {
     this.ensureLoaded();
-    const issue = this.data!.issues.find(i => i.id === id);
+    const issue = this.issueCache.get(id);
     return issue ? this.clone(issue) : null;
   }
 
   /**
-   * Update an issue
+   * Update an issue — writes only the affected issue file
    * @param id - Issue ID to update
    * @param update - Fields to update
    * @returns Updated issue
@@ -213,24 +270,23 @@ export class IssuesDatabase {
   async updateIssue(id: string, update: Partial<Omit<Issue, 'id' | 'createdAt'>>): Promise<Issue> {
     this.ensureLoaded();
 
-    const index = this.data!.issues.findIndex(i => i.id === id);
-    if (index === -1) {
+    const existing = this.issueCache.get(id);
+    if (!existing) {
       throw new Error(`Issue not found: ${id}`);
     }
 
-    const existing = this.data!.issues[index];
     const now = new Date().toISOString() as ISO8601;
 
     const updated: Issue = {
       ...existing,
       ...update,
-      id: existing.id, // Ensure ID is preserved
+      id: existing.id,           // Ensure ID is preserved
       createdAt: existing.createdAt, // Ensure creation time is preserved
       updatedAt: now
     };
 
-    this.data!.issues[index] = updated;
-    await this.persist();
+    await this.storage.writeFile(ISSUES_COLLECTION, id, JSON.stringify(updated, null, 2));
+    this.issueCache.set(id, updated);
     this.notifyChange();
 
     logger.debug(`updated issue ${id}`);
@@ -238,20 +294,19 @@ export class IssuesDatabase {
   }
 
   /**
-   * Delete an issue
+   * Delete an issue — deletes only the affected issue file
    * @param id - Issue ID to delete
    * @throws Error if issue not found
    */
   async deleteIssue(id: string): Promise<void> {
     this.ensureLoaded();
 
-    const index = this.data!.issues.findIndex(i => i.id === id);
-    if (index === -1) {
+    if (!this.issueCache.has(id)) {
       throw new Error(`Issue not found: ${id}`);
     }
 
-    this.data!.issues.splice(index, 1);
-    await this.persist();
+    await this.storage.deleteFile(ISSUES_COLLECTION, id);
+    this.issueCache.delete(id);
     this.notifyChange();
 
     logger.debug(`deleted issue ${id}`);
@@ -260,14 +315,14 @@ export class IssuesDatabase {
   // ==================== Search Operations ====================
 
   /**
-   * Search and filter issues
+   * Search and filter issues from the in-memory cache
    * @param filters - Search criteria
    * @returns Filtered issues
    */
   async searchIssues(filters: IssueSearchFilters): Promise<Issue[]> {
     this.ensureLoaded();
 
-    let results = [...this.data!.issues];
+    let results = Array.from(this.issueCache.values());
 
     if (filters.status) {
       results = results.filter(i => i.status === filters.status);
@@ -327,12 +382,13 @@ export class IssuesDatabase {
     issueCounter: number;
   }> {
     this.ensureLoaded();
+    const issues = Array.from(this.issueCache.values());
 
     return {
-      issueCount: this.data!.issues.length,
-      openCount: this.data!.issues.filter(i => i.status === Status.Open).length,
-      closedCount: this.data!.issues.filter(i => i.status === Status.Closed).length,
-      issueCounter: this.data!.metadata.issueCounter
+      issueCount: issues.length,
+      openCount: issues.filter(i => i.status === Status.Open).length,
+      closedCount: issues.filter(i => i.status === Status.Closed).length,
+      issueCounter: this.manifest!.metadata.issueCounter
     };
   }
 }

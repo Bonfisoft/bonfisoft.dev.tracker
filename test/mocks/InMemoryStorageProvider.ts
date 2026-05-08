@@ -7,40 +7,60 @@
 import type { IStorageProvider } from '../../src/storage/IStorageProvider.ts';
 
 /**
- * Mock storage provider that stores data in memory
- * Useful for unit tests to avoid file system operations
+ * Mock storage provider that stores data in memory.
+ * Manifest stored as a string; entity files stored in a nested Map:
+ *   files[collection][id] = content
  */
 export class InMemoryStorageProvider implements IStorageProvider {
-  private data: string | null = null;
+  private manifest: string | null = null;
+  private files: Map<string, Map<string, string>> = new Map();
 
-  /**
-   * Check if storage has data
-   * @returns true if data has been written
-   */
-  async exists(): Promise<boolean> {
-    return this.data !== null;
+  // ── Manifest ──────────────────────────────────────────────────────────────
+
+  async readManifest(): Promise<string | null> {
+    return this.manifest;
   }
 
-  /**
-   * Read stored data
-   * @returns stored content or null if nothing stored
-   */
-  async read(): Promise<string | null> {
-    return this.data;
+  async writeManifest(content: string): Promise<void> {
+    this.manifest = content;
   }
 
-  /**
-   * Write data to memory
-   * @param content - Content to store
-   */
-  async write(content: string): Promise<void> {
-    this.data = content;
+  // ── Per-entity files ──────────────────────────────────────────────────────
+
+  async listFiles(collection: string): Promise<string[]> {
+    return Array.from(this.collectionMap(collection).keys());
   }
 
+  async readFile(collection: string, id: string): Promise<string | null> {
+    return this.collectionMap(collection).get(id) ?? null;
+  }
+
+  async writeFile(collection: string, id: string, content: string): Promise<void> {
+    this.collectionMap(collection).set(id, content);
+  }
+
+  async deleteFile(collection: string, id: string): Promise<void> {
+    const col = this.collectionMap(collection);
+    if (!col.has(id)) {
+      throw new Error(`not found: ${collection}/${id}`);
+    }
+    col.delete(id);
+  }
+
+  // ── Test helpers ──────────────────────────────────────────────────────────
+
   /**
-   * Clear stored data (test helper)
+   * Reset all stored data (call in beforeEach)
    */
   clear(): void {
-    this.data = null;
+    this.manifest = null;
+    this.files.clear();
+  }
+
+  private collectionMap(collection: string): Map<string, string> {
+    if (!this.files.has(collection)) {
+      this.files.set(collection, new Map());
+    }
+    return this.files.get(collection)!;
   }
 }

@@ -54,6 +54,14 @@ export class Uri {
   }
 }
 
+// Mock FileType enum
+export enum FileType {
+  Unknown = 0,
+  File = 1,
+  Directory = 2,
+  SymbolicLink = 64
+}
+
 // Mock FileSystem
 class MockFileSystem {
   private files = new Map<string, Uint8Array>();
@@ -95,6 +103,38 @@ class MockFileSystem {
 
   async createDirectory(uri: Uri): Promise<void> {
     this.dirs.add(uri.fsPath);
+  }
+
+  async readDirectory(uri: Uri): Promise<[string, FileType][]> {
+    if (!this.dirs.has(uri.fsPath)) {
+      throw new Error(`Directory not found: ${uri.fsPath}`);
+    }
+    const prefix = uri.fsPath + '/';
+    const results: [string, FileType][] = [];
+    for (const filePath of this.files.keys()) {
+      if (filePath.startsWith(prefix)) {
+        const rest = filePath.slice(prefix.length);
+        if (!rest.includes('/')) {
+          results.push([rest, FileType.File]);
+        }
+      }
+    }
+    for (const dirPath of this.dirs) {
+      if (dirPath.startsWith(prefix)) {
+        const rest = dirPath.slice(prefix.length);
+        if (!rest.includes('/')) {
+          results.push([rest, FileType.Directory]);
+        }
+      }
+    }
+    return results;
+  }
+
+  async delete(uri: Uri): Promise<void> {
+    if (!this.files.has(uri.fsPath)) {
+      throw new Error(`File not found: ${uri.fsPath}`);
+    }
+    this.files.delete(uri.fsPath);
   }
 
   // Test helper methods
@@ -181,6 +221,7 @@ export class EventEmitter<T = void> {
 export default {
   Uri,
   workspace,
+  FileType,
   TreeItem,
   TreeItemCollapsibleState,
   ThemeIcon,

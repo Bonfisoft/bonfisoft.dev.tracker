@@ -6,25 +6,54 @@
 
 /**
  * Interface for storage providers
- * Implementations handle the actual file I/O or storage mechanism
+ * Supports a manifest file (db.json) and per-entity files within named collections.
+ * Each collection maps to a sub-folder (e.g. 'issues' → issues/<id>.json).
  */
 export interface IStorageProvider {
-  /**
-   * Check if storage exists and has data
-   * @returns Promise resolving to true if storage exists
-   */
-  exists(): Promise<boolean>;
+  // ── Manifest (db.json) ────────────────────────────────────────────────────
 
   /**
-   * Read data from storage
-   * @returns Promise resolving to stored string content, or null if not exists
+   * Read the manifest file
+   * @returns Manifest content, or null if it does not exist yet
    */
-  read(): Promise<string | null>;
+  readManifest(): Promise<string | null>;
 
   /**
-   * Write data to storage atomically
-   * @param content - String content to write
-   * @returns Promise that resolves when write is complete
+   * Write the manifest file atomically
+   * @param content - JSON string to write
    */
-  write(content: string): Promise<void>;
+  writeManifest(content: string): Promise<void>;
+
+  // ── Per-entity files ──────────────────────────────────────────────────────
+
+  /**
+   * List all entity IDs present in a collection
+   * @param collection - Collection name (e.g. 'issues')
+   * @returns Array of IDs (file name without .json extension)
+   */
+  listFiles(collection: string): Promise<string[]>;
+
+  /**
+   * Read a single entity file
+   * @param collection - Collection name
+   * @param id - Entity ID
+   * @returns File content, or null if not found
+   */
+  readFile(collection: string, id: string): Promise<string | null>;
+
+  /**
+   * Write a single entity file atomically
+   * @param collection - Collection name
+   * @param id - Entity ID
+   * @param content - JSON string to write
+   */
+  writeFile(collection: string, id: string, content: string): Promise<void>;
+
+  /**
+   * Delete a single entity file
+   * @param collection - Collection name
+   * @param id - Entity ID
+   * @throws if file does not exist
+   */
+  deleteFile(collection: string, id: string): Promise<void>;
 }

@@ -1,7 +1,7 @@
 # Data Model Specification - BonfiSoft Development Tracker
 
-> **Schema Version**: 1.0.0  
-> **Last Updated**: 2026-05-05
+> **Schema Version**: 2.0.0  
+> **Last Updated**: 2026-05-08
 
 ---
 
@@ -322,37 +322,48 @@ interface Template {
 
 ## Storage Format
 
-### JSON Schema
+### Manifest Schema (`db.json`)
+
+A lightweight manifest file holds everything *except* individual issue data:
 
 ```typescript
-interface IssuesDatabase {
-  schemaVersion: string;           // "1.0.0"
+interface Manifest {
+  schemaVersion: string;           // "2.0.0"
   project: {
     name: string;                  // Workspace folder name
     createdAt: string;             // First issue creation date
   };
-  issues: Issue[];
   milestones: Milestone[];
   sprints: Sprint[];
   templates: Template[];
   metadata: {
     lastExportAt: string | null;
-    issueCounter: number;          // For display IDs (optional)
+    issueCounter: number;          // Monotonic counter for display IDs
   };
 }
 ```
+
+### Per-Issue Files
+
+Each issue is stored as its own JSON file named `<uuid>.json`. This means:
+
+- Creating or updating an issue writes **only that issue's file** — the rest are untouched
+- Deleting an issue **deletes only that file**
+- Corruption of one file never affects other issues
+- Files are individually diffable in version control
+
+Each `<uuid>.json` contains a single serialised `Issue` object (see `Issue` interface above).
 
 ### File Structure (Workspace Storage)
 
 ```text
 .vscode/
 └── issues/
-    ├── issues.json          # Main database file
-    ├── backup/
-    │   ├── issues-2026-01-15.json
-    │   └── issues-2026-01-08.json
-    └── templates/
-        └── custom-templates.json
+    ├── db.json                         # Manifest (project info, milestones, sprints, templates, counters)
+    └── issues/
+        ├── <uuid-1>.json               # One file per issue
+        ├── <uuid-2>.json
+        └── ...
 ```
 
 ### File Structure (Global Storage)
@@ -360,7 +371,9 @@ interface IssuesDatabase {
 ```text
 ~/.config/Code/User/globalStorage/bonfisoft.development.tracker/
 └── <workspace-hash>/
-    └── issues.json
+    ├── db.json
+    └── issues/
+        └── <uuid>.json
 ```
 
 ---
@@ -497,13 +510,20 @@ export interface TemplateDefaults {
 
 ## Migration Notes
 
-### Schema Version 1.0.0
+### Schema Version 1.0.0 (superseded)
 
 - Initial release
-- All entities as specified above
+- Single `issues.json` file held all data
+
+### Schema Version 2.0.0 (current)
+
+- **Breaking change**: storage split into `db.json` manifest + per-issue files
+- Issue array removed from manifest; each issue is its own `issues/<uuid>.json`
+- `IssueDatabase` uses an in-memory `Map<id, Issue>` cache, populated at startup
+- No user-facing migration needed (not yet released at time of change)
 
 ### Future Migrations (Reserved)
 
-- 1.1.0: Add custom fields support
-- 1.2.0: Add workflow rules
-- 2.0.0: Breaking changes (if ever needed)
+- 2.1.0: Add custom fields support
+- 2.2.0: Add workflow rules
+- 3.0.0: Next breaking changes (if ever needed)

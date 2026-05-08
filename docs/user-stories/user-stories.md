@@ -336,18 +336,22 @@
 
 **Acceptance Criteria:**
 
-- [ ] Default storage: `.vscode/issues/issues.json`
-- [ ] Storage location follows opened workspace folder
-- [ ] JSON format readable and diffable
-- [ ] Atomic writes (temp file + rename)
-- [ ] Auto-create `.vscode/issues/` directory on first save
-- [ ] Schema version in JSON
+- [x] Default storage: `.vscode/issues/` in the workspace folder
+- [x] Manifest at `.vscode/issues/db.json` (schema version, project info, counters)
+- [x] Each issue stored as `.vscode/issues/issues/<uuid>.json`
+- [x] Storage location follows opened workspace folder
+- [x] JSON format readable and diffable per-issue
+- [x] Atomic writes (temp file + rename) for every file
+- [x] Auto-create directories on first save
+- [x] Schema version `2.0.0` in manifest
 
 **Definition of Done:**
 
-- IStorageProvider interface defined
-- WorkspaceStorageProvider implementation
-- Unit tests: round-trip CRUD
+- [x] `IStorageProvider` interface defined (manifest + per-entity methods)
+- [x] `WorkspaceStorageProvider` implementation
+- [x] `InMemoryStorageProvider` mock for tests
+- [x] Contract tests run against both implementations (24 tests)
+- [x] `IssuesDatabase` uses in-memory `Map` cache; single-file writes on mutation
 
 ---
 
